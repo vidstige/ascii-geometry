@@ -23,3 +23,11 @@ class Mesh:
 
     def compute_face_normals(self) -> None:
         self.face_normals = [self._face_normal(f) for f in self.faces]
+
+    def compute_vertex_normals(self) -> None:
+        self.compute_face_normals()
+        normals = np.zeros(self.vertices.shape)
+        for face, face_normal in zip(self.faces, self.face_normals):
+            normals[face] += face_normal
+
+        self.vertex_normals = normalized(normals, axis=0)

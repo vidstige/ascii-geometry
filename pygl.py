@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Callable, Optional, Tuple
+from typing import Callable, Dict, Optional, Tuple
 
 from mesh import Mesh
 
@@ -48,31 +48,6 @@ def contains_point(p0, p1, p2, p):
     return alpha >= 0 and beta >= 0 and gamma >= 0
 
 
-class RenderTarget(object):
-    def __init__(self, img: np.array):
-        self.img = img
-
-    def pixel(self, x, y, color):
-        self.img[int(x), int(y)] = color
-
-    def triangle(self, t, color):
-        p0, p1, p2 = [np.array(x).ravel().astype(int) for x in t]
-        width, height = self.img.shape[1], self.img.shape[0]
-        # First calculate a bounding box for this triangle so we don't have to iterate over the entire image
-        # Clamped to the bounds of the image
-        xmin = max(min(p0[0], p1[0], p2[0]), 0)
-        xmax = min(max(p0[0], p1[0], p2[0]), width)
-        ymin = max(min(p0[1], p1[1], p2[1]), 0)
-        ymax = min(max(p0[1], p1[1], p2[1]), height)
-
-        # Iterate over all pixels in the bounding box, test if they lie inside in the triangle
-        # If they do, set that pixel with the barycentric color of that point
-        for x in range(xmin, xmax):
-            for y in range(ymin, ymax):
-                if contains_point(p0, p1, p2, (x, y, 1, 1)):
-                    self.img[y, x] = color
-
-
 def get_screen(clip: np.array, r: Resolution) -> np.array:
     width, height = r
     center = np.array([width / 2, height / 2, 0])
@@ -96,8 +71,9 @@ def transform(matrix: np.array, vertices: np.array) -> np.array:
 
 def draw_triangle(
         target: np.array,
-        triangle: Tuple[int, int, int],
-        attributes: np.array):
+        triangle: Tuple[np.array, np.array, np.array],
+        fragment_shader: Callable,
+        varying: Dict[str, np.array]):
     # drop z coordinate
     p0, p1, p2 = [p[:2] for p in triangle]
 
@@ -126,37 +102,29 @@ def draw_triangle(
     # Find all indices of rows where all columns are positive
     is_inside = np.all(barycentric >= 0, axis=-1)
 
-    # Compute indices of all points inside triangle
-    #stride = np.array([4, target.get_stride()])
-    #indices = np.dot(p[is_inside], stride)
-
-    # Interpolate vertex attributes
-    if attributes:
-        attrs = np.dot(barycentric[is_inside], attributes)
-
     # Fill pixels
-    sx, sy = np.hsplit(p[is_inside], 2)
-    target[sy, sx, :] = (255, 255, 255)
-    #for index, a in zip(indices, attrs):
-    #    r, g, b = 1, 1, 1
-    #    data[index + 0] = r
-    #   data[index + 1] = g
-    #    data[index + 2] = b
+    if is_inside.any():  # numpy indexing does not like empty indices
+        # Interpolate vertex attributes
+        #attrs = np.dot(barycentric[is_inside], attributes) if attributes is not None else None
+        interpolated = {k: np.sum(barycentric[is_inside] * v, axis=1) for k, v in varying.items()}
+        # Fill pixels
+        sx, sy = np.hsplit(p[is_inside], 2)
+        target[sy, sx] = 255*fragment_shader(interpolated).reshape(-1, 1, 3)
 
 
-def render(target: np.array, model: Mesh, mvp: np.array):
-    # transform points to camera space and divide into clip space
-    clip_vertices = transform(mvp, model.vertices)
-    # scale and transform into screen space
-    screen = get_screen(clip_vertices, resolution(target))
+class Program:
+    def __init__(self, vertex_shader, fragment_shader):
+        self.vertex_shader = vertex_shader
+        self.fragment_shader = fragment_shader
 
-    for face in model.faces:
-        draw_triangle(
-            target,
-            screen[face],
-            model.attributes[face] if model.attributes else None)
+    def render(self, target: np.array, mesh: Mesh, **uniforms):
+        positions, outputs = self.vertex_shader(mesh.vertices, mesh.vertex_normals, uniforms)
+        screen = get_screen(to_clip(positions), resolution(target))
 
-    #for s in screen:
-    #    x, y, z, w = s[0,0], s[0,1], s[0,2], s[0,3]
-    #    target.pixel(x, y, color=(255, 0, 255, 255))
-    
+        for face in mesh.faces:
+            varying = {k: v[face] for k, v in outputs.items()}
+            draw_triangle(
+                target,
+                screen[face],
+                self.fragment_shader,
+                varying)
