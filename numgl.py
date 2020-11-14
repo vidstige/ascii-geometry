@@ -65,31 +65,31 @@ def rotate(a, xyz):
     x, y, z = normalized(xyz)
     s, c = math.sin(a), math.cos(a)
     nc = 1 - c
-    return np.matrix([[x*x*nc +   c, x*y*nc - z*s, x*z*nc + y*s, 0],
-                      [y*x*nc + z*s, y*y*nc +   c, y*z*nc - x*s, 0],
-                      [x*z*nc - y*s, y*z*nc + x*s, z*z*nc +   c, 0],
-                      [           0,            0,            0, 1]])
+    return np.array([[x*x*nc +   c, x*y*nc - z*s, x*z*nc + y*s, 0],
+                    [y*x*nc + z*s, y*y*nc +   c, y*z*nc - x*s, 0],
+                    [x*z*nc - y*s, y*z*nc + x*s, z*z*nc +   c, 0],
+                    [           0,            0,            0, 1]])
  
 def rotx(a):
     s, c = math.sin(a), math.cos(a)
-    return np.matrix([[1,0,0,0],
-                      [0,c,-s,0],
-                      [0,s,c,0],
-                      [0,0,0,1]])
+    return np.array([[1,0,0,0],
+                     [0,c,-s,0],
+                     [0,s,c,0],
+                     [0,0,0,1]])
  
 def roty(a):
     s, c = math.sin(a), math.cos(a)
-    return np.matrix([[c,0,s,0],
-                      [0,1,0,0],
-                      [-s,0,c,0],
-                      [0,0,0,1]])
+    return np.array([[c,0,s,0],
+                     [0,1,0,0],
+                     [-s,0,c,0],
+                     [0,0,0,1]])
  
 def rotz(a):
-    s, c = sincos(a)
-    return np.matrix([[c,-s,0,0],
-                      [s,c,0,0],
-                      [0,0,1,0],
-                      [0,0,0,1]])
+    s, c = math.sin(a), math.cos(a)
+    return np.array([[c,-s,0,0],
+                     [s,c,0,0],
+                     [0,0,1,0],
+                     [0,0,0,1]])
 
 def lookat(eye, target, up):
     F = target[:3] - eye[:3]
@@ -98,8 +98,6 @@ def lookat(eye, target, up):
     s = np.cross(f, U)
     u = np.cross(s, f)
     M = np.identity(4)
-    #import sys
-    #print(s, u, f, file=sys.stderr)
     M[:3, :3] = np.vstack([s, u, -f])
     T = translate(-eye)
     return np.dot(M, T)
@@ -107,7 +105,7 @@ def lookat(eye, target, up):
 
 def viewport(x, y, w, h):
     x, y, w, h = map(float, (x, y, w, h))
-    return np.matrix([[w/2, 0  , 0,x+w/2],
-                      [0  , h/2, 0,y+h/2],
-                      [0  , 0  , 1,    0],
-                      [0  , 0  , 0,    1]])
+    return np.array([[w/2, 0  , 0,x+w/2],
+                     [0  , h/2, 0,y+h/2],
+                     [0  , 0  , 1,    0],
+                     [0  , 0  , 0,    1]])

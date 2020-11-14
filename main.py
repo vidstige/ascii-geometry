@@ -13,10 +13,13 @@ def main():
     w, h = 320, 200
     buffer = np.zeros((h, w, 3), dtype=np.uint8)
     projection = numgl.perspective(90, w/h, 0.1, 5)
-    camera = numgl.lookat(np.array([0, 0, -10]), np.array([0, 0, 0]), np.array([0, 1, 0]))
-    render(buffer, mesh, mvp=projection @ camera)
 
-    for _ in range(1024):
+    wy = 0.01
+    wx = 0.03
+    for a in range(1024):
+        camera = numgl.translate((0,0, -10)) @ numgl.roty(a * wy) @ numgl.rotx(a * wx)
+        buffer.fill(0)
+        render(buffer, mesh, mvp=projection @ camera)
         sys.stdout.buffer.write(buffer.tobytes())
     
 
