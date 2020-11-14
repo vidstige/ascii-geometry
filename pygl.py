@@ -71,7 +71,8 @@ def transform(matrix: np.array, vertices: np.array) -> np.array:
 
 def draw_triangle(
         target: np.array,
-        triangle: Tuple[np.array, np.array, np.array],
+        z_buffer: np.array,
+        triangle: np.array,  # 3 rows with one vertex each
         fragment_shader: Callable,
         varying: Dict[str, np.array]):
     # drop z coordinate
@@ -85,9 +86,9 @@ def draw_triangle(
 
     width, height = resolution(target)
     xmin = int(max(min(p0[0], p1[0], p2[0]), 0))
-    xmax = int(min(max(p0[0], p1[0], p2[0]), width))
+    xmax = int(min(max(p0[0], p1[0], p2[0]), width)) + 1
     ymin = int(max(min(p0[1], p1[1], p2[1]), 0))
-    ymax = int(min(max(p0[1], p1[1], p2[1]), height))
+    ymax = int(min(max(p0[1], p1[1], p2[1]), height)) + 1
 
     x, y = np.meshgrid(range(xmin, xmax), range(ymin, ymax), indexing='xy')
     p = np.vstack([x.ravel(), y.ravel()]).T
@@ -103,13 +104,27 @@ def draw_triangle(
     is_inside = np.all(barycentric >= 0, axis=-1)
 
     # Fill pixels
-    if is_inside.any():  # numpy indexing does not like empty indices
-        # Interpolate vertex attributes
-        #attrs = np.dot(barycentric[is_inside], attributes) if attributes is not None else None
-        interpolated = {k: np.sum(barycentric[is_inside] * v, axis=1) for k, v in varying.items()}
-        # Fill pixels
-        sx, sy = np.hsplit(p[is_inside], 2)
-        target[sy, sx] = 255*fragment_shader(interpolated).reshape(-1, 1, 3)
+    if not is_inside.any():  # numpy indexing does not like empty indices
+        return
+
+    # interpolate z
+    z = np.sum(barycentric[is_inside] * triangle[:, 2].T, axis=1)[:, None]
+    
+    sx, sy = np.hsplit(p[is_inside], 2)
+    zok = (z_buffer[sy, sx] > z).ravel()
+    if not zok.any():
+        return
+
+    #import sys
+    #print(zok.shape, sx.shape, sy.shape, barycentric[is_inside][zok].shape, file=sys.stderr)        
+
+    # Interpolate vertex attributes
+    interpolated = {k: np.sum(barycentric[is_inside][zok] * v, axis=1) for k, v in varying.items()}
+
+    # Fill pixels
+    xx, yy = sx[zok], sy[zok]
+    target[yy, xx] = np.clip(255 * fragment_shader(interpolated).reshape(-1, 1, 3), 0, 255)
+    z_buffer[yy, xx] = z[zok]
 
 
 class Program:
@@ -117,14 +132,16 @@ class Program:
         self.vertex_shader = vertex_shader
         self.fragment_shader = fragment_shader
 
-    def render(self, target: np.array, mesh: Mesh, **uniforms):
+    def render(self, target: np.array, z_buffer: np.array, mesh: Mesh, **uniforms):
         positions, outputs = self.vertex_shader(mesh.vertices, mesh.vertex_normals, uniforms)
         screen = get_screen(to_clip(positions), resolution(target))
+        z_buffer.fill(np.inf)
 
         for face in mesh.faces:
             varying = {k: v[face] for k, v in outputs.items()}
             draw_triangle(
                 target,
+                z_buffer,
                 screen[face],
                 self.fragment_shader,
                 varying)

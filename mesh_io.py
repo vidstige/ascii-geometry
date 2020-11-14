@@ -24,4 +24,5 @@ def load_obj(path: Path) -> Mesh:
             if parts[0] == 'f':
                 faces.append([int(x.split('/')[0]) - 1 for x in parts[1:]])
 
-    return Mesh(np.array(vertices), faces)
+    mesh = Mesh(np.array(vertices), faces)
+    return mesh
