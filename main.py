@@ -3,14 +3,13 @@ import sys
 
 import numpy as np
 
+import ascii
 from mesh import Mesh
 from mesh_io import load_obj
-from pygl import Program
+from pygl import Program, vec4
 import numgl
 from torus import torus
 
-def vec4(v3, scalar):
-    return np.hstack([v3, scalar * np.ones(shape=(len(v3), 1))])
 
 # Only called _once_ per render, should compute all vertices
 def vertex_shader(positions_in, normals_in, uniforms):
@@ -26,27 +25,34 @@ def vertex_shader(positions_in, normals_in, uniforms):
 
 def fragment_shader(inputs):
     intensity = inputs['intensity']
-    return np.vstack([intensity, intensity, intensity]).T
+    #return np.vstack([intensity, intensity, intensity]).T
+    return intensity.T
 
 
-def main():
-    #mesh = load_obj(Path('meshes/cube.obj'))
-    #mesh.compute_vertex_normals()
-    mesh = torus(1, 0.4, 16, 16)
-    w, h = 320, 200
-    buffer = np.zeros((h, w, 3), dtype=np.uint8)
+def draw(resolution, mesh, aspect=1):
+    w, h = resolution
+    buffer = np.zeros((h, w), dtype=np.float)
     
     light1 = numgl.normalized(np.array([0, -1, -1, 0]))
 
-    z_buffer = np.empty(buffer.shape[:-1])
+    z_buffer = np.empty(buffer.shape[:2])
     program = Program(vertex_shader=vertex_shader, fragment_shader=fragment_shader)
-    projection = numgl.perspective(90, w / h, 0.1, 5)
+    projection = numgl.perspective(90, aspect * w / h, 0.1, 5)
     wx, wy = 0.03, 0.01
     for a in range(1024):
         camera = numgl.translate((0, 0, -10)) @ numgl.roty(a * wy) @ numgl.rotx(a * wx)
         buffer.fill(0)
         program.render(buffer, z_buffer, mesh, projection=projection, model_view=camera, light1=light1, ambient=0.3)
-        sys.stdout.buffer.write(buffer.tobytes())
+        final = ascii.shade(buffer)
+        print("\033[2J\033[1;1H")  # clear and move to top left
+        sys.stdout.buffer.write(final)
 
+def raw(buffer: np.array) -> bytes:
+    return buffer.tobytes()
+
+def main():
+    mesh = torus(1, 0.4, 8, 8)
+    draw((80, 24), mesh, aspect=0.5)
+    #draw((320, 200), mesh, raw)
 
 main()

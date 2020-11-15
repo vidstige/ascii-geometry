@@ -1,2 +1,2 @@
 #!/bin/sh
-FLASK_APP=ascii.py venv/bin/flask run
+FLASK_APP=server.py venv/bin/flask run $@

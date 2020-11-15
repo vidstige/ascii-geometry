@@ -11,6 +11,11 @@ def resolution(target: np.array) -> Resolution:
     return shape[1], shape[0]
 
 
+# helper for shaders
+def vec4(v3, scalar):
+    return np.hstack([v3, scalar * np.ones(shape=(len(v3), 1))])
+
+
 def edge_function(p0, p1, p2):
     ''' Calculates the signed area of the triangle (p0, p1, p2).
         The sign of the value tells which side of the line p0p1 that p2 lies.
@@ -115,15 +120,14 @@ def draw_triangle(
     if not zok.any():
         return
 
-    #import sys
-    #print(zok.shape, sx.shape, sy.shape, barycentric[is_inside][zok].shape, file=sys.stderr)        
-
     # Interpolate vertex attributes
     interpolated = {k: np.sum(barycentric[is_inside][zok] * v, axis=1) for k, v in varying.items()}
 
     # Fill pixels
     xx, yy = sx[zok], sy[zok]
-    target[yy, xx] = np.clip(255 * fragment_shader(interpolated).reshape(-1, 1, 3), 0, 255)
+    color = fragment_shader(interpolated)
+    shape = list(target.shape); shape[0] = -1; shape[1] = 1
+    target[yy, xx] = np.clip(color.reshape(shape), 0, 1)
     z_buffer[yy, xx] = z[zok]
 
 

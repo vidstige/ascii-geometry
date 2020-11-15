@@ -7,15 +7,11 @@ def normalized(a, axis=-1, order=2):
 
 
 class Mesh:
-    def __init__(self,
-            vertices, faces,
-            attributes=None):
-        assert attributes is None or len(vertices) == len(attributes)
+    def __init__(self, vertices, faces, vertex_normals=None):
         self.vertices = vertices
         self.faces = faces
         self.face_normals = None
-        self.vertex_normals = None
-        self.attributes = attributes
+        self.vertex_normals = vertex_normals
 
     def _face_normal(self, face) -> np.array:
         p0, p1, p2 = [self.vertices[i] for i in face]
