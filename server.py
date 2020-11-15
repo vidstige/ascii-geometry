@@ -52,7 +52,7 @@ def scroller(line: bytes, text: str, t, w=1) -> bytes:
 
 @app.route('/torus')
 def stream():
-    mesh = torus(1, 0.4, 6, 16)
+    mesh = torus(1, 0.4, 6, 14)
 
     w, h = parse_resolution(request.args.get('resolution', '80x50'))
     aspect = float(request.args.get('aspect', '0.5'))
@@ -77,7 +77,6 @@ def stream():
             lines[2] = scroller(lines[0], 'vidstige 2020', t, w=10)
             yield b"\033[2J\033[1;1H" + b'\n'.join(lines) + b"\n"
             duration = (time.time() - beginning) - t
-            #yield "\n\n{} - {} = {}".format(dt, duration, dt - duration)
             if dt - duration > 0:
                 time.sleep(dt - duration)
 
