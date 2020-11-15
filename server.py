@@ -35,8 +35,19 @@ def vertex_shader(positions_in, normals_in, uniforms):
 
 def fragment_shader(inputs):
     intensity = inputs['intensity']
-    #return np.vstack([intensity, intensity, intensity]).T
     return intensity.T
+
+
+def scroller(line: bytes, text: str, t, w=1) -> bytes:
+    work = list(line)
+    data = text.encode()
+    start = int(t * w) - len(data)
+    n = len(work) + len(data)
+    for i, char in enumerate(data):
+        j = (start + i) % n
+        if j >= 0 and j < len(work):
+            work[j] = char
+    return bytes(work)
 
 
 @app.route('/torus')
@@ -45,8 +56,8 @@ def stream():
 
     w, h = parse_resolution(request.args.get('resolution', '80x50'))
     aspect = float(request.args.get('aspect', '0.5'))
+    fps = float(request.args.get('fps', 25))
     buffer = np.zeros((h, w), dtype=np.float)
-    fps = 30
     
     light1 = numgl.normalized(np.array([0, -1, -1, 0]))
 
@@ -62,8 +73,9 @@ def stream():
             camera = numgl.translate((0, 0, -10)) @ numgl.rotz(t * wz) @ numgl.roty(t * wy) @ numgl.rotx(t * wx)
             buffer.fill(0)
             program.render(buffer, z_buffer, mesh, projection=projection, model_view=camera, light1=light1, ambient=0.1)
-            final = ascii.shade(buffer)
-            yield b"\033[2J\033[1;1H" + final + b"\n"
+            lines = ascii.shade(buffer)
+            lines[2] = scroller(lines[0], 'vidstige 2020', t, w=10)
+            yield b"\033[2J\033[1;1H" + b'\n'.join(lines) + b"\n"
             duration = (time.time() - beginning) - t
             #yield "\n\n{} - {} = {}".format(dt, duration, dt - duration)
             if dt - duration > 0:
