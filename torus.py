@@ -14,8 +14,8 @@ def tesselate(shape):
     b = np.roll(indices, 1, axis=1).ravel()
     c = np.roll(indices, 1, axis=0).ravel()
     d = np.roll(np.roll(indices, 1, axis=0), 1, axis=1).ravel()
-    top = np.vstack([a, d, b])
-    bottom = np.vstack([a, c, d])
+    top = np.vstack([a, b, d])
+    bottom = np.vstack([a, d, c])
     return np.hstack([top, bottom]).T
 
 
@@ -30,6 +30,6 @@ def torus(R: float, r: float, a, b) -> Mesh:
     nx = np.cos(phi) * np.cos(theta)
     ny = np.sin(phi) * np.cos(theta)
     nz = np.sin(theta)
-    normals = -np.vstack([nx.ravel(), ny.ravel(), nz.ravel()]).T
+    normals = np.vstack([nx.ravel(), ny.ravel(), nz.ravel()]).T
     return Mesh(vertices, tesselate(theta.shape), vertex_normals=normals)
 

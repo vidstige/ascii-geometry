@@ -4,12 +4,15 @@ import sys
 import time
 
 from flask import Flask, request, Response
+import moderngl
 import numpy as np
+from pyrr import Matrix44
 
 import ascii
 from mesh import Mesh
 from mesh_io import load_obj
-from pygl import Program, vec4, Resolution
+from renderer import Renderer  # opengl
+from pygl import Program, vec4, Resolution  # pygl
 import numgl
 from torus import torus
 
@@ -19,6 +22,21 @@ app = Flask(__name__)
 
 def parse_resolution(s: str) -> Resolution:
     return tuple(int(d) for d in s.split('x'))
+
+
+def create_context():
+    # Re-use context objects as a workaround for this issue
+    # https://github.com/moderngl/moderngl/issues/226
+    if create_context.cache:
+        return create_context.cache
+
+    ctx = moderngl.create_standalone_context(
+        libgl='libGL.so.1',
+        libx11='libX11.so.6')
+    ctx.enable(moderngl.DEPTH_TEST | moderngl.CULL_FACE | moderngl.BLEND)
+    create_context.cache = ctx
+    return ctx
+create_context.cache = None  # type: ignore[attr-defined]
 
 
 # Only called _once_ per render, should compute all vertices
@@ -50,34 +68,57 @@ def scroller(line: bytes, text: str, t, w=1) -> bytes:
     return bytes(work)
 
 
-@app.route('/torus')
-def stream():
-    mesh = torus(1, 0.4, 6, 14)
+@app.route('/torus.png')
+def torus_image():
+    mesh = torus(1, 0.5, 12, 32)
+    w, h = parse_resolution(request.args.get('resolution', '80x50'))
+    aspect = float(request.args.get('aspect', '1'))
+    t = float(request.args.get('t', 0))
+    
+    light1 = numgl.normalized(np.array([0, 1, 1]))
+    angular_velocity = np.array([1.7, 2, 0])
+    projection = Matrix44.perspective_projection(60.0, aspect * w / h, 0.1, 10.0)
+    camera = Matrix44.from_translation(np.array([0, 0, -3])) * Matrix44.from_eulers(t * angular_velocity)
 
+    with create_context() as ctx:
+        renderer = Renderer(ctx, (w, h), mesh, projection=projection)
+        renderer.render(camera, light1)
+        image = renderer.snapshot()        
+        from io import BytesIO
+        with BytesIO() as f:
+            image.save(f, 'png')
+            return Response(f.getvalue(), mimetype='image/png')
+
+
+@app.route('/torus')
+def stream_torus():
+    mesh = torus(1, 0.5, 12, 32)
     w, h = parse_resolution(request.args.get('resolution', '80x50'))
     aspect = float(request.args.get('aspect', '0.5'))
     fps = float(request.args.get('fps', 25))
-    buffer = np.zeros((h, w), dtype=np.float)
     
-    light1 = numgl.normalized(np.array([0, -1, -1, 0]))
+    light1 = numgl.normalized(np.array([0, 1, 1]))
+    angular_velocity = np.array([1.7, 2, 0])
+    projection = Matrix44.perspective_projection(60.0, aspect * w / h, 0.1, 10.0)
 
-    z_buffer = np.empty(buffer.shape[:2])
-    program = Program(vertex_shader=vertex_shader, fragment_shader=fragment_shader)
-    projection = numgl.perspective(90, aspect * w / h, 0.1, 5)
-    wx, wy, wz = 1.7, 2, 0
     dt = 1 / fps
     beginning = time.time()
     def frames():
-        for _ in count():
-            t = time.time() - beginning
-            camera = numgl.translate((0, 0, -10)) @ numgl.rotz(t * wz) @ numgl.roty(t * wy) @ numgl.rotx(t * wx)
-            buffer.fill(0)
-            program.render(buffer, z_buffer, mesh, projection=projection, model_view=camera, light1=light1, ambient=0.1)
-            lines = ascii.shade(buffer)
-            lines[2] = scroller(lines[0], 'vidstige 2020', t, w=10)
-            yield b"\033[2J\033[1;1H" + b'\n'.join(lines) + b"\n"
-            duration = (time.time() - beginning) - t
-            if dt - duration > 0:
-                time.sleep(dt - duration)
+        with create_context() as ctx:
+            renderer = Renderer(ctx, (w, h), mesh, projection=projection)
+
+            for _ in count():
+                t = time.time() - beginning
+                theta = t * angular_velocity
+                rotation = Matrix44.from_z_rotation(theta[2]) * Matrix44.from_y_rotation(theta[1]) * Matrix44.from_x_rotation(theta[0])
+                camera = Matrix44.from_translation(np.array([0, 0, -4])) * rotation
+                renderer.render(camera, light1)
+                buffer = np.mean(renderer.snapshot2(), axis=-1)
+                lines = ascii.shade(buffer)
+                lines[2] = scroller(lines[0], 'vidstige 2020', t, w=10)
+                yield b"\033[2J\033[1;1H" + b'\n'.join(lines) + b"\n"
+                duration = (time.time() - beginning) - t
+                if dt - duration > 0:
+                    time.sleep(dt - duration)
 
     return Response(frames(), mimetype='text/plain;charset=UTF-8')
