@@ -39,23 +39,6 @@ def create_context():
 create_context.cache = None  # type: ignore[attr-defined]
 
 
-# Only called _once_ per render, should compute all vertices
-def vertex_shader(positions_in, normals_in, uniforms):
-    projection = uniforms['projection']
-    model_view = uniforms['model_view']
-    ambient = uniforms['ambient']
-    mvp = projection @ model_view
-    light = uniforms['light1']
-    positions = mvp @ vec4(positions_in, 1).T
-    normals = np.linalg.inv(model_view).T @ vec4(normals_in, 0).T
-    return positions.T, {'intensity': np.clip(np.sum(normals.T * light, axis=1), 0, 1) + ambient}
-
-
-def fragment_shader(inputs):
-    intensity = inputs['intensity']
-    return intensity.T
-
-
 def scroller(line: bytes, text: str, t, w=1) -> bytes:
     work = list(line)
     data = text.encode()
