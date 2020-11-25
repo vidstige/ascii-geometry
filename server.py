@@ -12,7 +12,6 @@ import ascii
 from mesh import Mesh
 from mesh_io import load_obj
 from renderer import Renderer  # opengl
-from pygl import Program, vec4, Resolution  # pygl
 import numgl
 from torus import torus
 
@@ -20,7 +19,7 @@ from torus import torus
 app = Flask(__name__)
 
 
-def parse_resolution(s: str) -> Resolution:
+def parse_resolution(s: str):
     return tuple(int(d) for d in s.split('x'))
 
 

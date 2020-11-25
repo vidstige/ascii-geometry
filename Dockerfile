@@ -13,6 +13,7 @@ WORKDIR /app
 ENV DISPLAY=:99.0
 
 COPY shaders/*.vert shaders/*.frag shaders/
+COPY static/* ./static/
 COPY *.py ./
 
-CMD xvfb-run gunicorn -k=gevent --bind=0.0.0.0:${PORT:-5000} server:app
+CMD xvfb-run waitress-serve --port=${PORT:-5000} server:app
