@@ -75,6 +75,9 @@ def torus_image():
 
 @app.route('/torus')
 def stream_torus():
+    if 'curl' not in request.headers.get('User-Agent', 'unknown') and 'curl' not in request.args.get('user-agent', 'unknown'):
+        return app.send_static_file('ubuntu.html')
+
     mesh = torus(1, 0.5, 12, 32)
     w, h = parse_resolution(request.args.get('resolution', '80x50'))
     aspect = float(request.args.get('aspect', '0.5'))
@@ -98,7 +101,7 @@ def stream_torus():
                 renderer.render(camera, light1)
                 buffer = np.mean(renderer.snapshot2(), axis=-1)
                 lines = ascii.shade(buffer)
-                lines[2] = scroller(lines[0], 'vidstige 2020', t, w=10)
+                lines[2] = scroller(lines[0], 'vidstige 2020', t, w=5)
                 yield b"\033[2J\033[1;1H" + b'\n'.join(lines) + b"\n"
                 duration = (time.time() - beginning) - t
                 if dt - duration > 0:
