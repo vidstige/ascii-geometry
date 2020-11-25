@@ -1,7 +1,9 @@
 Flask
+gunicorn
+gevent
 numpy
 moderngl==5.6.2
-pil
+pillow
 pyrr
 
 pylint

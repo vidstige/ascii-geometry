@@ -1,7 +1,18 @@
 FROM python:3.6
 WORKDIR /app
-ADD requirements.txt ./
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    mesa-utils libegl1-mesa xauth xvfb 
+
+# Install python dependencies
+COPY requirements.txt .
 RUN pip install -r requirements.txt
-ADD *.py ./
-ENV FLASK_APP=server
-CMD flask run --host=0.0.0.0 --port=${PORT:-5000}
+
+WORKDIR /app
+
+ENV DISPLAY=:99.0
+
+COPY shaders/*.vert shaders/*.frag shaders/
+COPY *.py ./
+
+CMD xvfb-run gunicorn -k=gevent --bind=0.0.0.0:${PORT:-5000} server:app
