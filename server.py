@@ -81,10 +81,12 @@ def stream_torus():
     w, h = parse_resolution(request.args.get('resolution', '80x50'))
     aspect = float(request.args.get('aspect', '0.5'))
     fps = float(request.args.get('fps', 25))
-    
+    fov = float(request.args.get('fov', 60))
+    d = float(request.args.get('d', 3.2))
+
     light1 = numgl.normalized(np.array([0, 1, 1]))
     angular_velocity = np.array([1.7, 2, 0])
-    projection = Matrix44.perspective_projection(60.0, aspect * w / h, 0.1, 10.0)
+    projection = Matrix44.perspective_projection(fov, aspect * w / h, 0.1, 10.0)
 
     dt = 1 / fps
     beginning = time.time()
@@ -96,11 +98,12 @@ def stream_torus():
                 t = time.time() - beginning
                 theta = t * angular_velocity
                 rotation = Matrix44.from_z_rotation(theta[2]) * Matrix44.from_y_rotation(theta[1]) * Matrix44.from_x_rotation(theta[0])
-                camera = Matrix44.from_translation(np.array([0, 0, -4])) * rotation
+                camera = Matrix44.from_translation(np.array([0, 0, -d])) * rotation
                 renderer.render(camera, light1)
                 buffer = np.mean(renderer.snapshot2(), axis=-1)
                 lines = ascii.shade(buffer)
-                lines[2] = scroller(lines[0], 'vidstige 2020', t, w=5)
+                text = 'vidstige 2020'
+                lines[-2] = scroller(lines[-2], text, t, w=9)
                 yield b"\033[2J\033[1;1H" + b'\n'.join(lines) + b"\n"
                 duration = (time.time() - beginning) - t
                 if dt - duration > 0:
