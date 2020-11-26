@@ -102,8 +102,9 @@ def stream_torus():
                 renderer.render(camera, light1)
                 buffer = np.mean(renderer.snapshot2(), axis=-1)
                 lines = ascii.shade(buffer)
-                text = 'vidstige 2020'
-                lines[-2] = scroller(lines[-2], text, t, w=9)
+                text = "resolution: {w}x{h}, fov: {fov:.2f}, fps: {fps:.2f}, d: {d:.2f}, by: vidstige 2020".format(
+                    w=w, h=h, fov=fov, fps=fps, d=d)
+                lines[-2] = scroller(lines[-2], text, t, w=-12)
                 yield b"\033[2J\033[1;1H" + b'\n'.join(lines) + b"\n"
                 duration = (time.time() - beginning) - t
                 if dt - duration > 0:
