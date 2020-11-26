@@ -78,7 +78,7 @@ def stream_torus():
         return app.send_static_file('ubuntu.html')
 
     mesh = torus(1, 0.5, 12, 32)
-    w, h = parse_resolution(request.args.get('resolution', '80x50'))
+    w, h = parse_resolution(request.args.get('resolution', '80x24'))
     aspect = float(request.args.get('aspect', '0.5'))
     fps = float(request.args.get('fps', 25))
     fov = float(request.args.get('fov', 60))
