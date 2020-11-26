@@ -16,4 +16,4 @@ COPY shaders/*.vert shaders/*.frag shaders/
 COPY static/* ./static/
 COPY *.py ./
 
-CMD xvfb-run waitress-serve --port=${PORT:-5000} server:app
+CMD xvfb-run gunicorn --workers=${WORKERS:-4} --bind=0.0.0.0:${PORT:-5000} server:app

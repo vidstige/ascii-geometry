@@ -1,5 +1,5 @@
 Flask
-waitress
+gunicorn
 numpy
 moderngl==5.6.2
 pillow
